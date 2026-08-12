@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>SYNTŌPOLIS — Digital Island 0.1</title>
+  <style>
+    :root{color-scheme:dark;--bg:#07121b;--panel:rgba(5,17,26,.78);--line:rgba(255,255,255,.14);--text:#edf5f7;--muted:#9db1b8;--accent:#8ee3b7}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+    canvas{display:block;width:100%;height:100%}
+    .glass{background:var(--panel);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.22)}
+    #brand{position:fixed;left:22px;top:20px;padding:15px 18px;border-radius:18px;z-index:5;max-width:min(460px,calc(100vw - 44px))}
+    #brand .kicker{font-size:11px;letter-spacing:.22em;color:var(--accent);font-weight:700}#brand h1{font-size:23px;line-height:1;margin:7px 0 7px;font-weight:650;letter-spacing:.02em}#brand p{font-size:12px;margin:0;color:var(--muted);line-height:1.45}
+    #stats{position:fixed;right:22px;top:20px;width:230px;padding:14px;border-radius:18px;z-index:5}#stats h2{font-size:11px;letter-spacing:.16em;margin:0 0 11px;color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;font-size:12px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)}.row:first-of-type{border-top:0}.value{font-variant-numeric:tabular-nums;font-weight:650}.ok{color:#92eabf}
+    #legend{position:fixed;left:22px;bottom:20px;padding:12px 14px;border-radius:16px;z-index:5;display:flex;flex-wrap:wrap;gap:8px;max-width:min(720px,calc(100vw - 44px))}.tag{font-size:11px;color:#dbe7ea;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:6px 9px;background:rgba(255,255,255,.045)}
+    #controls{position:fixed;right:22px;bottom:20px;padding:9px;border-radius:16px;z-index:5;display:flex;gap:7px}button{appearance:none;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);color:var(--text);padding:8px 10px;border-radius:10px;font:600 11px/1 system-ui;cursor:pointer}button:hover,button.active{background:rgba(142,227,183,.17);border-color:rgba(142,227,183,.45);color:#caffdf}
+    #hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);font-size:11px;color:rgba(235,246,248,.66);z-index:4;text-shadow:0 2px 10px #000;pointer-events:none}
+    @media(max-width:720px){#brand{left:12px;top:12px;padding:12px 14px}#brand h1{font-size:19px}#stats{right:12px;top:auto;bottom:72px;width:190px;padding:10px}.row{padding:4px 0;font-size:11px}#legend{left:12px;bottom:12px;right:210px;gap:5px;padding:8px}.tag{font-size:9px;padding:5px 7px}#controls{right:12px;bottom:12px}#hint{display:none}}
+  </style>
+</head>
+<body>
+  <div id="brand" class="glass">
+    <div class="kicker">SYNTŌPOLIS / DIGITAL ISLAND 0.1</div>
+    <h1>Остров Согласия</h1>
+    <p>Первый браузерный прототип цифрового общества. Масштаб острова — 2×2 км, стартовая популяция — 100 жителей.</p>
+  </div>
+
+  <div id="stats" class="glass">
+    <h2>SYSTEM STATUS</h2>
+    <div class="row"><span>Население</span><span class="value" id="population">100</span></div>
+    <div class="row"><span>Энергия</span><span class="value ok" id="energy">104%</span></div>
+    <div class="row"><span>Вода</span><span class="value ok" id="water">93%</span></div>
+    <div class="row"><span>Пища</span><span class="value ok" id="food">88%</span></div>
+    <div class="row"><span>Стабильность</span><span class="value ok" id="stability">96%</span></div>
+    <div class="row"><span>День</span><span class="value" id="day">1</span></div>
+  </div>
+
+  <div id="legend" class="glass">
+    <span class="tag">● Центр Согласия</span><span class="tag">● Жильё</span><span class="tag">● Образование</span><span class="tag">● Медицина</span><span class="tag">● Исследования</span><span class="tag">● Ферма</span><span class="tag">● Энергия</span><span class="tag">● Порт</span>
+  </div>
+
+  <div id="controls" class="glass"><button data-speed="1" class="active">1×</button><button data-speed="20">20×</button><button data-speed="200">200×</button></div>
+  <div id="hint">Перетаскивание — вращение · колесо/жест — масштаб · правой кнопкой — панорама</div>
+
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"}}
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x8fc2d3);
+    scene.fog = new THREE.FogExp2(0x8fc2d3, 0.00055);
+
+    const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 1, 10000);
+    camera.position.set(1450, 1120, 1450);
+
+    const renderer = new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.prepend(renderer.domElement);
+
+    const controls = new OrbitControls(camera,renderer.domElement);
+    controls.target.set(0,30,0);controls.enableDamping=true;controls.dampingFactor=.06;controls.minDistance=500;controls.maxDistance=3800;controls.maxPolarAngle=Math.PI*.47;
+
+    scene.add(new THREE.HemisphereLight(0xd9f2ff,0x49633a,2.25));
+    const sun = new THREE.DirectionalLight(0xfff0cd,3.1);sun.position.set(-900,1500,-500);sun.castShadow=true;scene.add(sun);
+
+    const waterMat = new THREE.MeshStandardMaterial({color:0x286f8a,roughness:.28,metalness:.04,transparent:true,opacity:.96});
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),waterMat);water.rotation.x=-Math.PI/2;water.position.y=-10;scene.add(water);
+
+    function rand(x,z){return Math.sin(x*12.9898+z*78.233)*43758.5453%1}
+    function heightAt(x,z){
+      const r=Math.sqrt((x/980)**2+(z/930)**2);const coast=Math.max(0,1-Math.pow(r,3.1));
+      const ridge=135*Math.exp(-((x+180)**2/510000+(z+590)**2/85000));
+      const west=55*Math.exp(-((x+620)**2/160000+(z+50)**2/600000));
+      const valley=-26*Math.exp(-(x*x/250000+z*z/250000));
+      const noise=(Math.sin(x*.012)+Math.cos(z*.014)+Math.sin((x+z)*.008))*8;
+      return coast*(42+ridge+west+valley+noise)-8;
+    }
+
+    const geo=new THREE.PlaneGeometry(2000,2000,160,160);geo.rotateX(-Math.PI/2);
+    const p=geo.attributes.position;
+    for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,heightAt(x,z));}
+    geo.computeVertexNormals();
+    const land=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x658b59,roughness:.96,metalness:0}));land.receiveShadow=true;scene.add(land);
+
+    // Pale sand ribbon near the coast.
+    const sandGeo=new THREE.RingGeometry(880,1020,128,1);sandGeo.rotateX(-Math.PI/2);const sand=new THREE.Mesh(sandGeo,new THREE.MeshStandardMaterial({color:0xd9c89a,roughness:1}));sand.scale.set(1.02,1,0.95);sand.position.y=-4;scene.add(sand);
+
+    function cylinder(x,z,r,h,color){const y=heightAt(x,z);const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.08,h,16),new THREE.MeshStandardMaterial({color,roughness:.72}));m.position.set(x,y+h/2,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m}
+    function box(x,z,w,d,h,color,rot=0){const y=heightAt(x,z);const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.8}));m.position.set(x,y+h/2,z);m.rotation.y=rot;m.castShadow=true;m.receiveShadow=true;scene.add(m);return m}
+
+    // Center of Accord.
+    cylinder(0,-40,72,18,0xe6dcc5);cylinder(0,-40,28,34,0xb7c8bc);
+    for(let i=0;i<5;i++){const a=i/5*Math.PI*2+.4;box(Math.cos(a)*165,Math.sin(a)*165-35,76,48,24,0xd7c7a8,-a+.2)}
+
+    // Five residential clusters.
+    const clusters=[[-320,-130],[315,-150],[-280,250],[270,260],[30,390]];
+    for(const [cx,cz] of clusters){for(let i=0;i<5;i++){const a=i/5*Math.PI*2;box(cx+Math.cos(a)*75,cz+Math.sin(a)*75,45,28,16,0xd9d0b5,-a)}}
+
+    // Civic and production buildings.
+    box(-330,-415,130,75,28,0xc7d7cf,.18); // education
+    box(330,-410,105,68,26,0xe1ddd2,-.14); // medicine
+    box(-100,-650,145,80,30,0xaebfba,.08); // research
+    box(-510,390,170,95,28,0xa99e83,.28); // production
+    box(500,405,150,80,26,0x879b8a,-.2); // energy
+
+    // Agriculture plots.
+    for(let i=0;i<6;i++){const plot=box(-120+i*55,610,42,180,3,i%2?0x799c55:0x9cac5e,0);plot.position.y+=1}
+    for(let i=0;i<3;i++){const g=box(255+i*55,610,40,120,9,0xb9d8c6,0);g.material.transparent=true;g.material.opacity=.72}
+
+    // Port and pier.
+    box(600,705,150,70,24,0x9f967e,-.25);
+    const pier=box(735,805,32,260,5,0x7c6f5d,-.32);pier.position.y=0;
+
+    // Lake.
+    const lake=new THREE.Mesh(new THREE.CircleGeometry(105,64),new THREE.MeshStandardMaterial({color:0x3a91a4,roughness:.2,transparent:true,opacity:.9}));lake.rotation.x=-Math.PI/2;lake.position.set(275,heightAt(275,-675)+2,-675);scene.add(lake);
+
+    // Trees represented as instanced low-poly cones.
+    const treeGeo=new THREE.ConeGeometry(9,34,6);const treeMat=new THREE.MeshStandardMaterial({color:0x315f3f,roughness:1});const trees=new THREE.InstancedMesh(treeGeo,treeMat,700);const dummy=new THREE.Object3D();let ti=0;
+    for(let i=0;i<1600&&ti<700;i++){const x=(Math.random()-.5)*1800,z=(Math.random()-.5)*1700;const r=Math.sqrt((x/930)**2+(z/860)**2);const clear=Math.sqrt(x*x+z*z)<480 || (z>350&&Math.abs(x)<500);if(r<.92&&!clear){const y=heightAt(x,z);if(y>3){dummy.position.set(x,y+15,z);const s=.65+Math.random()*.8;dummy.scale.set(s,s,s);dummy.rotation.y=Math.random()*Math.PI;dummy.updateMatrix();trees.setMatrixAt(ti++,dummy.matrix)}}}
+    trees.count=ti;trees.castShadow=true;scene.add(trees);
+
+    // Zone labels using DOM overlays projected from 3D.
+    const labels=[['ЦЕНТР СОГЛАСИЯ',0,-40],['ОБРАЗОВАНИЕ',-330,-415],['МЕДИЦИНА',330,-410],['ИССЛЕДОВАНИЯ',-100,-650],['ПРОИЗВОДСТВО',-510,390],['ЭНЕРГИЯ',500,405],['ФЕРМА',80,610],['ПОРТ',620,715]];
+    const labelEls=[];for(const [text,x,z] of labels){const el=document.createElement('div');el.textContent=text;Object.assign(el.style,{position:'fixed',zIndex:'3',pointerEvents:'none',font:'700 9px system-ui',letterSpacing:'.12em',color:'#fff',textShadow:'0 2px 6px #000,0 0 12px #000',whiteSpace:'nowrap',transform:'translate(-50%,-50%)'});document.body.appendChild(el);labelEls.push({el,pos:new THREE.Vector3(x,heightAt(x,z)+55,z)})}
+
+    let speed=1,sim=0,last=performance.now();
+    const dayEl=document.querySelector('#day'),energyEl=document.querySelector('#energy'),waterEl=document.querySelector('#water'),foodEl=document.querySelector('#food'),stabilityEl=document.querySelector('#stability');
+    document.querySelectorAll('button[data-speed]').forEach(b=>b.onclick=()=>{document.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');speed=+b.dataset.speed});
+
+    function updateLabels(){for(const l of labelEls){const v=l.pos.clone().project(camera);const visible=v.z<1; l.el.style.display=visible?'block':'none';l.el.style.left=(v.x*.5+.5)*innerWidth+'px';l.el.style.top=(-v.y*.5+.5)*innerHeight+'px'}}
+    function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-last)/1000);last=now;sim+=dt*speed;controls.update();
+      const day=1+Math.floor(sim/10);dayEl.textContent=day;
+      const wave=Math.sin(sim*.035);energyEl.textContent=Math.round(103+wave*5)+'%';waterEl.textContent=Math.round(92+Math.sin(sim*.024+1)*4)+'%';foodEl.textContent=Math.round(87+Math.sin(sim*.018+2)*5)+'%';stabilityEl.textContent=Math.round(95+Math.sin(sim*.013)*2)+'%';
+      water.material.color.setHSL(.54,.47,.34+Math.sin(now*.00022)*.012);updateLabels();renderer.render(scene,camera)}
+    requestAnimationFrame(animate);
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+  </script>
+</body>
+</html>
